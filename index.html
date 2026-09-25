@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AppVault - Secure Cloud</title>
+  <style>
+    /* =========================================
+       CSS: UI DESIGN (Dark & Glassmorphism)
+       ========================================= */
+    :root {
+      --bg: #0e1621;
+      --surface: rgba(255, 255, 255, 0.05);
+      --surface-hover: rgba(255, 255, 255, 0.1);
+      --primary: #37aef2;
+      --primary-hover: #2691d9;
+      --text: #e8edf2;
+      --text-muted: #8b98a5;
+      --danger: #ff5252;
+      --success: #00e676;
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+    
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    .hidden { display: none !important; }
+
+    /* Toast Notification */
+    #toast {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      background: var(--primary); color: #fff; padding: 10px 20px;
+      border-radius: 20px; font-size: 14px; z-index: 9999;
+      box-shadow: 0 4px 15px rgba(55, 174, 242, 0.4);
+    }
+    #toast.error { background: var(--danger); box-shadow: 0 4px 15px rgba(255, 82, 82, 0.4); }
+
+    /* Centered Screens (Setup & Login) */
+    .screen-centered {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      flex: 1; padding: 20px;
+    }
+
+    .card {
+      background: var(--surface); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.1); padding: 30px;
+      border-radius: var(--radius); width: 100%; max-width: 400px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+
+    .card h2 { text-align: center; margin-bottom: 20px; color: var(--primary); }
+    .card p { color: var(--text-muted); font-size: 14px; margin-bottom: 20px; text-align: center; }
+
+    input[type="text"], input[type="password"] {
+      width: 100%; padding: 12px; margin-bottom: 15px;
+      background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);
+      color: var(--text); border-radius: 8px; outline: none; transition: border 0.3s;
+    }
+    input[type="text"]:focus, input[type="password"]:focus { border-color: var(--primary); }
+
+    button {
+      width: 100%; padding: 12px; background: var(--primary); color: #fff;
+      border: none; border-radius: 8px; font-weight: bold; cursor: pointer;
+      transition: background 0.3s;
+    }
+    button:hover { background: var(--primary-hover); }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    
+    button.outline { background: transparent; border: 1px solid var(--text-muted); color: var(--text-muted); margin-top: 10px; }
+    button.outline:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+
+    .status-text { font-size: 13px; text-align: center; margin-bottom: 10px; }
+    .status-text.error { color: var(--danger); }
+    .status-text.success { color: var(--success); }
+
+    .link { color: var(--primary); cursor: pointer; font-size: 13px; text-decoration: underline; text-align: center; display: block; margin-top: 15px; }
+
+    /* Dashboard */
+    #screen-dashboard { padding: 20px; max-width: 900px; margin: 0 auto; width: 100%; }
+    
+    .topbar {
+      display: flex; justify-content: space-between; align-items: center;
+      background: var(--surface); padding: 15px 20px; border-radius: var(--radius);
+      margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05);
+    }
+    .topbar-title { font-size: 18px; font-weight: bold; color: var(--primary); }
+    .topbar-stats { font-size: 14px; color: var(--text-muted); }
+    .topbar-actions button { width: auto; padding: 8px 15px; margin-left: 10px; font-size: 13px; }
+
+    .dropzone {
+      border: 2px dashed rgba(255,255,255,0.2); border-radius: var(--radius);
+      padding: 40px 20px; text-align: center; color: var(--text-muted);
+      transition: all 0.3s; background: rgba(0,0,0,0.1); margin-bottom: 20px;
+    }
+    .dropzone.drag-over { border-color: var(--primary); background: rgba(55, 174, 242, 0.1); }
+    .dropzone button { width: auto; padding: 8px 20px; margin-top: 15px; }
+
+    .upload-queue { margin-bottom: 20px; }
+    .upload-item {
+      background: var(--surface); padding: 10px 15px; border-radius: 8px;
+      margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .upload-bar { flex: 1; height: 4px; background: rgba(0,0,0,0.3); margin: 0 15px; border-radius: 2px; overflow: hidden; }
+    .upload-bar-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.3s; }
+
+    /* Gallery */
+    .gallery-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px;
+    }
+    .gallery-card {
+      background: var(--surface); border-radius: var(--radius); padding: 15px;
+      text-align: center; cursor: pointer; transition: transform 0.2s, background 0.2s;
+      border: 1px solid rgba(255,255,255,0.05); position: relative;
+    }
+    .gallery-card:hover { transform: translateY(-3px); background: var(--surface-hover); }
+    .gallery-thumb { height: 80px; display: flex; align-items: center; justify-content: center; color: var(--primary); position: relative; }
+    .gallery-name { font-size: 13px; margin-top: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .gallery-sub { font-size: 11px; color: var(--text-muted); margin-top: 5px; display: flex; align-items: center; justify-content: center; gap: 5px; }
+    .lock-chip { color: var(--success); display: flex; align-items: center; }
+    .play-badge { position: absolute; background: rgba(0,0,0,0.5); border-radius: 50%; padding: 5px; color: #fff; }
+
+    /* Modals */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.85); backdrop-filter: blur(5px);
+      display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px;
+    }
+    .modal-content {
+      background: var(--bg); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: var(--radius); width: 100%; max-width: 400px; padding: 25px;
+    }
+    
+    /* Viewer */
+    .viewer-content { max-width: 900px; width: 100%; background: transparent; border: none; display: flex; flex-direction: column; height: 90vh; }
+    .viewer-header { display: flex; justify-content: space-between; margin-bottom: 15px; align-items: center; }
+    .viewer-body { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #000; border-radius: var(--radius); }
+    .viewer-body img, .viewer-body video { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .viewer-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
+    .viewer-footer button { width: auto; padding: 10px 20px; }
+    .btn-danger { background: var(--danger); }
+    .btn-danger:hover { background: #d32f2f; }
+  </style>
+</head>
+<body>
+
+  <!-- Toast -->
+  <div id="toast" class="hidden">Notification</div>
+
+  <!-- SETUP SCREEN -->
+  <div id="screen-setup" class="screen-centered hidden">
+    <div class="card">
+      <h2>AppVault Setup</h2>
+      <p>Connect your Telegram Bot</p>
+      <form id="form-setup">
+        <input type="text" id="input-token" placeholder="Bot Token (e.g. 1234:ABC...)" required>
+        <input type="text" id="input-chatid" placeholder="Chat ID (e.g. 12345678)" required>
+        <div id="setup-status" class="status-text"></div>
+        <button type="submit" id="btn-setup-submit">Connect</button>
+      </form>
+      <div class="link" id="btn-show-help">How to get these?</div>
+      <div id="setup-help" class="hidden" style="font-size: 12px; color: var(--text-muted); margin-top: 15px; text-align: left; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px;">
+        1. Open Telegram, search for <b>@BotFather</b>.<br>
+        2. Send <code>/newbot</code> and get the <b>Token</b>.<br>
+        3. Search for <b>@userinfobot</b>, send any message to get your <b>Chat ID</b>.<br>
+        4. Go to your new bot, press Start, and send at least one message (e.g., "Hello").
+      </div>
+    </div>
+  </div>
+
+  <!-- LOGIN SCREEN -->
+  <div id="screen-login" class="screen-centered hidden">
+    <div class="card">
+      <h2>AppVault</h2>
+      <p>Enter password to unlock vault</p>
+      <form id="form-login">
+        <input type="password" id="input-password" placeholder="Password (Default: 1122)" required>
+        <div id="login-status" class="status-text"></div>
+        <button type="submit" id="btn-login-submit">Unlock</button>
+      </form>
+      <div class="link" id="btn-forgot">Forgot Password?</div>
+      <div class="link" id="btn-switch-account" style="color: var(--text-muted); margin-top: 25px;">Use different bot account</div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD SCREEN -->
+  <div id="screen-dashboard" class="hidden">
+    <div class="topbar">
+      <div class="topbar-title">🟦 AppVault</div>
+      <div class="topbar-stats"><span id="stat-count">0 files</span> • <span id="stat-size">0 B</span></div>
+      <div class="topbar-actions">
+        <button id="btn-open-settings" class="outline">⚙️</button>
+        <button id="btn-lock">🔒 Lock</button>
+      </div>
+    </div>
+
+    <div id="dropzone" class="dropzone">
+      <div>☁️ Drag and drop files here to upload to Telegram</div>
+      <div style="font-size: 13px; margin-top: 5px;">Images, Videos, or Documents (Max 20MB)</div>
+      <input type="file" id="input-file" multiple class="hidden">
+      <button id="btn-browse" class="outline">Browse Files</button>
+    </div>
+
+    <div id="upload-queue" class="upload-queue"></div>
+
+    <div id="gallery" class="gallery-grid hidden"></div>
+    <div id="gallery-empty" style="text-align: center; color: var(--text-muted); padding: 40px 0;">
+      Vault is empty. Upload some files!
+    </div>
+  </div>
+
+  <!-- FILE VIEWER MODAL -->
+  <div id="modal-viewer" class="modal-overlay hidden">
+    <div class="viewer-content">
+      <div class="viewer-header">
+        <h3 id="viewer-filename">filename.ext</h3>
+        <button id="btn-close-viewer" style="width: auto; background: transparent; padding: 5px;">✖</button>
+      </div>
+      <div id="viewer-body" class="viewer-body">
+        <!-- Image or Video will load here -->
+      </div>
+      <div class="viewer-footer">
+        <button id="btn-viewer-delete" class="btn-danger">🗑️ Delete</button>
+        <button id="btn-viewer-download">⬇️ Download</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS MODAL -->
+  <div id="modal-settings" class="modal-overlay hidden">
+    <div class="modal-content">
+      <h3 style="margin-bottom: 20px;">Settings</h3>
+      <div id="settings-status" class="status-text"></div>
+      
+      <form id="form-change-password">
+        <input type="password" id="input-current-password" placeholder="Current Password" required>
+        <input type="password" id="input-new-password" placeholder="New Password" required>
+        <button type="submit" style="margin-bottom: 20px;">Change Password</button>
+      </form>
+
+      <form id="form-security">
+        <input type="text" id="input-sec-question" placeholder="Security Question" required>
+        <input type="text" id="input-sec-answer" placeholder="Answer (to reset password)">
+        <button type="submit" style="margin-bottom: 20px;">Update Recovery</button>
+      </form>
+
+      <div style="margin-bottom: 20px; font-size: 14px;">
+        <label><input type="checkbox" id="input-encrypt-toggle"> Encrypt new uploads</label>
+      </div>
+
+      <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 20px;">
+        <div>Chat ID: <span id="settings-chatid"></span></div>
+        <div>Token: <span id="settings-token">••••••••</span> <span id="btn-reveal-token" class="link" style="display:inline; margin:0 5px;">show</span></div>
+      </div>
+
+      <button id="btn-forget-device" class="btn-danger" style="margin-bottom: 10px;">Sign Out Device</button>
+      <button id="btn-close-settings" class="outline">Close</button>
+    </div>
+  </div>
+
+  <!-- FORGOT PASSWORD MODAL -->
+  <div id="modal-forgot" class="modal-overlay hidden">
+    <div class="modal-content">
+      <h3 style="margin-bottom: 15px;">Reset Password</h3>
+      <p id="forgot-question" style="font-size: 14px; margin-bottom: 15px; color: var(--primary);"></p>
+      <form id="form-forgot">
+        <input type="text" id="input-forgot-answer" placeholder="Your Answer" required>
+        <div id="forgot-status" class="status-text"></div>
+        <button type="submit">Verify & Reset</button>
+      </form>
+      <button id="btn-forgot-cancel" class="outline">Cancel</button>
+    </div>
+  </div>
+
+  <!-- =========================================
+       JAVASCRIPT: LOGIC & TELEGRAM API (CORS FIXED)
+       ========================================= -->
+  <script>
+  (() => {
+    "use strict";
+
+    const LS_TOKEN = "appvault_token";
+    const LS_CHATID = "appvault_chatid";
+    const DEFAULT_PASSWORD = "1122"; // Updated Default Password
+    const DEFAULT_QUESTION = "What is your favorite movie?";
+    const DEFAULT_ANSWER = "harry potter";
+    const EXT_MAP = { image: ".vimg", video: ".vvid", other: ".vdat" };
+    const INDEX_FILENAME = "vault_index.vdat";
+
+    let TOKEN = null;
+    let CHAT_ID = null;
+    let CONFIG = null;
+    let POINTER_MSG_ID = null;
+    let CURRENT_INDEX_MSG_ID = null;
+    let UNLOCKED_PASSWORD = null;
+    let ACTIVE_FILE = null;
+
+    const $ = (sel) => document.querySelector(sel);     const $$ = (sel) => document.querySelectorAll(sel);
+
+    function show(el) { el.classList.remove("hidden"); }
+    function hide(el) { el.classList.add("hidden"); }
+
+    function uuid() {
+      return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        const v = c === "x" ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      });
+    }
+
+    function randomHex(bytes) {
+      const arr = new Uint8Array(bytes);
+      crypto.getRandomValues(arr);
+      return Array.from(arr).map((b) => b.toString(16).padStart(2, "0")).join("");
+    }
+
+    async function sha256Hex(str) {
+      const enc = new TextEncoder().encode(str);
+      const buf = await crypto.subtle.digest("SHA-256", enc);
+      return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+    }
+
+    function formatBytes(n) {
+      if (!n) return "0 B";
+      const units = ["B", "KB", "MB", "GB"];
+      let i = 0; let v = n;
+      while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+      return `${v.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+    }
+
+    function mimeCategory(mime) {
+      if (mime.startsWith("image/")) return "image";
+      if (mime.startsWith("video/")) return "video";
+      return "other";
+    }
+
+    let toastTimer = null;
+    function toast(msg, isError = false) {
+      const el = $("#toast");
+      el.textContent = msg;
+      el.classList.toggle("error", isError);
+      show(el);
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => hide(el), 3200);
+    }
+
+    function setStatus(el, msg, kind) {
+      el.textContent = msg || "";
+      el.classList.remove("error", "success");
+      if (kind) el.classList.add(kind);
+    }
+
+    async function deriveKey(password, saltHex) {
+      const saltBytes = new Uint8Array(saltHex.match(/.{2}/g).map((h) => parseInt(h, 16)));
+      const keyMaterial = await crypto.subtle.importKey(
+        "raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]
+      );
+      return crypto.subtle.deriveKey(
+        { name: "PBKDF2", salt: saltBytes, iterations: 150000, hash: "SHA-256" },
+        keyMaterial, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]
+      );
+    }
+
+    async function encryptBytes(arrayBuffer, key) {
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const cipher = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, arrayBuffer);
+      const combined = new Uint8Array(iv.byteLength + cipher.byteLength);
+      combined.set(iv, 0);
+      combined.set(new Uint8Array(cipher), iv.byteLength);
+      return combined;
+    }
+
+    async function decryptBytes(arrayBuffer, key) {
+      const bytes = new Uint8Array(arrayBuffer);
+      const iv = bytes.slice(0, 12);
+      const data = bytes.slice(12);
+      return await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, data);
+    }
+
+    function apiBase() { return `https://api.telegram.org/bot${TOKEN}`; }
+    function fileBase() { return `https://api.telegram.org/file/bot${TOKEN}`; }
+
+    async function tg(method, params = {}) {
+      try {
+        const body = new URLSearchParams();
+        for (const key in params) {
+          if (Object.prototype.hasOwnProperty.call(params, key)) {
+            const val = params[key];
+            body.append(key, typeof val === "object" ? JSON.stringify(val) : val);
+          }
+        }
+        const res = await fetch(`${apiBase()}/${method}`, {
+          method: "POST",
+          body: body,
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.description || `API error (${method})`);
+        return data.result;
+      } catch (e) {
+        if (e.message.includes("Failed to fetch")) {
+          throw new Error("ইন্টারনেট বা নেটওয়ার্ক এরর!");
+        }
+        throw e;
+      }
+    }
+
+    async function tgUpload(fileBlob, filename, mime) {
+      const fd = new FormData();
+      fd.append("chat_id", CHAT_ID);
+      fd.append("document", new File([fileBlob], filename, { type: mime || "application/octet-stream" }));
+      const res = await fetch(`${apiBase()}/sendDocument`, { method: "POST", body: fd });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.description || "Upload failed");
+      return data.result;
+    }
+
+    async function tgFileUrl(fileId) {
+      const info = await tg("getFile", { file_id: fileId });
+      return `${fileBase()}/${info.file_path}`;
+    }
+
+    async function tgDeleteMessage(messageId) {
+      try { await tg("deleteMessage", { chat_id: CHAT_ID, message_id: messageId }); } catch (e) {}
+    }
+
+    function defaultConfig() {
+      return {
+        version: 1, passwordHash: null, salt: randomHex(16),
+        secQuestion: DEFAULT_QUESTION, secAnswerHash: null,
+        encryptionEnabled: false, files: [],
+      };
+    }
+
+    async function findPointer() {
+      const chat = await tg("getChat", { chat_id: CHAT_ID });
+      if (!chat.pinned_message || !chat.pinned_message.text) return null;
+      try {
+        const ptr = JSON.parse(chat.pinned_message.text);
+        if (ptr && ptr.idx_file_id && ptr.idx_msg_id) {
+          return { ...ptr, pointerMsgId: chat.pinned_message.message_id };
+        }
+      } catch (e) {}
+      return null;
+    }
+
+    async function downloadIndex(fileId) {
+      const url = await tgFileUrl(fileId);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Vault index ডাউনলোড করা সম্ভব হয়নি");
+      return res.json();
+    }
+
+    async function uploadIndex(configObj) {
+      const json = JSON.stringify(configObj);
+      const blob = new Blob([json], { type: "application/json" });
+      const msg = await tgUpload(blob, INDEX_FILENAME, "application/json");
+      return { fileId: msg.document.file_id, msgId: msg.message_id };
+    }
+
+    async function saveIndex(newConfig) {
+      const { fileId, msgId } = await uploadIndex(newConfig);
+      const pointerText = JSON.stringify({ idx_file_id: fileId, idx_msg_id: msgId });
+
+      if (POINTER_MSG_ID) {
+        try {
+          await tg("editMessageText", { chat_id: CHAT_ID, message_id: POINTER_MSG_ID, text: pointerText });
+        } catch(e) {
+          const msg = await tg("sendMessage", { chat_id: CHAT_ID, text: pointerText });
+          POINTER_MSG_ID = msg.message_id;
+          await tg("pinChatMessage", { chat_id: CHAT_ID, message_id: POINTER_MSG_ID, disable_notification: true });
+        }
+      } else {
+        const msg = await tg("sendMessage", { chat_id: CHAT_ID, text: pointerText });
+        POINTER_MSG_ID = msg.message_id;
+        await tg("pinChatMessage", { chat_id: CHAT_ID, message_id: POINTER_MSG_ID, disable_notification: true });
+      }
+
+      if (CURRENT_INDEX_MSG_ID && CURRENT_INDEX_MSG_ID !== msgId) tgDeleteMessage(CURRENT_INDEX_MSG_ID);
+      CURRENT_INDEX_MSG_ID = msgId;
+      CONFIG = newConfig;
+    }
+
+    function goSetup() { hide($("#screen-login")); hide($("#screen-dashboard")); show($("#screen-setup")); }
+    function goLogin() { hide($("#screen-setup")); hide($("#screen-dashboard")); show($("#screen-login")); }
+    function goDashboard() { hide($("#screen-setup")); hide($("#screen-login")); show($("#screen-dashboard")); }
+
+    async function boot() {
+      TOKEN = localStorage.getItem(LS_TOKEN);
+      CHAT_ID = localStorage.getItem(LS_CHATID);
+
+      if (!TOKEN || !CHAT_ID) { goSetup(); return; }
+
+      goLogin();
+      const loginStatus = $("#login-status");
+      loginStatus.textContent = "Syncing vault index...";
+      $("#btn-login-submit").disabled = true;
+
+      try {
+        const ptr = await findPointer();
+        if (ptr) {
+          CONFIG = await downloadIndex(ptr.idx_file_id);
+          POINTER_MSG_ID = ptr.pointerMsgId;
+          CURRENT_INDEX_MSG_ID = ptr.idx_msg_id;
+          loginStatus.textContent = "";
+        } else {
+          setStatus(loginStatus, "Vault খালি। নতুন সেটআপ তৈরি হচ্ছে...", "success");
+          const newConfig = defaultConfig();
+          newConfig.passwordHash = await sha256Hex(DEFAULT_PASSWORD);
+          newConfig.secAnswerHash = await sha256Hex(DEFAULT_ANSWER);
+          await saveIndex(newConfig);
+          CONFIG = newConfig;
+          setStatus(loginStatus, "");
+        }
+      } catch (err) {
+        console.error(err);
+        setStatus(loginStatus, err.message || "Network error fetching index.", "error");
+      } finally {
+        $("#btn-login-submit").disabled = false;
+      }
+    }
+
+    async function updateDashboardStats() {
+      let size = 0;
+      CONFIG.files.forEach(f => size += f.size);
+      $("#stat-count").textContent = `${CONFIG.files.length} file${CONFIG.files.length !== 1 ? 's' : ''}`;
+      $("#stat-size").textContent = formatBytes(size);
+    }
+
+    async function renderGallery() {
+      const gallery = $("#gallery");
+      gallery.innerHTML = "";
+      
+      if (!CONFIG.files || CONFIG.files.length === 0) {
+        show($("#gallery-empty")); hide(gallery); return;
+      }
+
+      hide($("#gallery-empty")); show(gallery);
+      const sorted = [...CONFIG.files].sort((a, b) => b.ts - a.ts);
+
+      for (const file of sorted) {
+        const card = document.createElement("div");
+        card.className = "gallery-card";
+        card.onclick = () => openViewer(file);
+
+        const isVideo = file.mime.startsWith("video/");
+        const isImg = file.mime.startsWith("image/");
+
+        let thumbHtml = `<svg viewBox="0 0 24 24" width="48" height="48" opacity="0.3"><path fill="currentColor" d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>`;
+        if (isImg) thumbHtml = `<svg viewBox="0 0 24 24" width="48" height="48" opacity="0.3"><path fill="currentColor" d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>`;
+        if (isVideo) thumbHtml = `<svg viewBox="0 0 24 24" width="48" height="48" opacity="0.3"><path fill="currentColor" d="M18 3v2h-2V3H8v2H6V3H4v18h2v-2h2v2h8v-2h2v2h2V3h-2zM8 17H6v-2h2v2zm0-4H6v-2h2v2zm0-4H6V7h2v2zm10 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2z"/></svg><div class="play-badge"><svg viewBox="0 0 24 24" width="28" height="28"><path fill="currentColor" d="M8 5v14l11-7z"/></svg></div>`;
+
+        card.innerHTML = `
+          <div class="gallery-thumb">${thumbHtml}</div>
+          <div class="gallery-meta">
+            <div class="gallery-name" title="${file.name}">${file.name}</div>
+            <div class="gallery-sub">
+              ${file.encrypted ? `<span class="lock-chip" title="Encrypted"><svg viewBox="0 0 24 24" width="12" height="12"><path fill="currentColor" d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg></span>` : ''}
+              <span>${formatBytes(file.size)}</span>
+            </div>
+          </div>
+        `;
+        gallery.appendChild(card);
+      }
+    }
+
+    async function processUpload(fileObj) {
+      const queue = $("#upload-queue");
+      const item = document.createElement("div");
+      item.className = "upload-item";
+      item.innerHTML = `<div class="upload-item-name" style="font-size:14px;">${fileObj.name}</div><div class="upload-bar"><div class="upload-bar-fill"></div></div><div class="upload-item-state" style="font-size:12px; color:var(--primary);">Reading</div>`;
+      queue.appendChild(item);
+
+      const setProgress = (pct, text) => {
+        item.querySelector(".upload-bar-fill").style.width = `${pct}%`;
+        item.querySelector(".upload-item-state").textContent = text;
+      };
+
+      try {
+        const buffer = await fileObj.arrayBuffer();
+        let payloadBlob = new Blob([buffer], { type: fileObj.type || "application/octet-stream" });
+        const willEncrypt = CONFIG.encryptionEnabled;
+        const outName = `${uuid()}${EXT_MAP[mimeCategory(fileObj.type)]}`;
+
+        if (willEncrypt) {
+          setProgress(30, "Encrypting...");
+          const key = await deriveKey(UNLOCKED_PASSWORD, CONFIG.salt);
+          const encrypted = await encryptBytes(buffer, key);
+          payloadBlob = new Blob([encrypted], { type: "application/octet-stream" });
+        }
+
+        setProgress(60, "Uploading...");
+        const msg = await tgUpload(payloadBlob, outName, payloadBlob.type);
+
+        setProgress(90, "Saving...");
+        CONFIG.files.push({
+          id: uuid(), name: fileObj.name, size: fileObj.size,
+          mime: fileObj.type || "application/octet-stream",
+          encrypted: willEncrypt, file_id: msg.document.file_id, ts: Date.now()
+        });
+        await saveIndex(CONFIG);
+
+        setProgress(100, "Done!");
+        setTimeout(() => item.remove(), 2500);
+        updateDashboardStats(); renderGallery();
+      } catch (err) {
+        setProgress(0, "Failed");
+        toast(`Failed to upload ${fileObj.name}`, true);
+        setTimeout(() => item.remove(), 4000);
+      }
+    }
+
+    function handleFiles(fileList) {
+      if (!UNLOCKED_PASSWORD) return;
+      for (const f of fileList) processUpload(f);
+    }
+
+    async function openViewer(file) {
+      ACTIVE_FILE = file;
+      const body = $("#viewer-body");
+      const dlBtn = $("#btn-viewer-download");
+      
+      body.innerHTML = `<div style="color:var(--text-muted);">Downloading from Telegram...</div>`;
+      $("#viewer-filename").textContent = file.name;
+      dlBtn.disabled = true;
+      show($("#modal-viewer"));
+
+      try {
+        const url = await tgFileUrl(file.file_id);
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Download failed");
+        
+        let blob = await res.blob();
+        if (file.encrypted) {
+          body.innerHTML = `<div style="color:var(--text-muted);">Decrypting file...</div>`;
+          const buffer = await blob.arrayBuffer();
+          const key = await deriveKey(UNLOCKED_PASSWORD, CONFIG.salt);
+          const decrypted = await decryptBytes(buffer, key);
+          blob = new Blob([decrypted], { type: file.mime });
+        }
+
+        const objUrl = URL.createObjectURL(blob);
+        dlBtn.onclick = () => {
+          const a = document.createElement("a");
+          a.href = objUrl; a.download = file.name; a.click();
+        };
+        dlBtn.disabled = false;
+
+        if (file.mime.startsWith("image/")) {
+          body.innerHTML = `<img src="${objUrl}" alt="${file.name}">`;
+        } else if (file.mime.startsWith("video/")) {
+          body.innerHTML = `<video src="${objUrl}" controls autoplay></video>`;
+        } else {
+          body.innerHTML = `<div style="color:var(--text-muted);">Preview not available.</div>`;
+        }
+      } catch (err) {
+        body.innerHTML = `<div style="color:var(--danger);">Error loading file.</div>`;
+      }
+    }
+
+    // UI Events
+    $("#btn-show-help").onclick = () => $("#setup-help").classList.toggle("hidden");
+
+    $("#form-setup").onsubmit = async (e) => {
+      e.preventDefault();
+      const token = $("#input-token").value.trim();
+      const chatid = $("#input-chatid").value.trim();
+      $("#btn-setup-submit").disabled = true;
+      setStatus($("#setup-status"), "Verifying...");
+
+      try {
+        const bkpToken = TOKEN; TOKEN = token;
+        await tg("getMe"); 
+        CHAT_ID = chatid;
+        const ptr = await findPointer();
+        
+        if (!ptr) {
+          setStatus($("#setup-status"), "Initializing new vault...");
+          const newConfig = defaultConfig();
+          newConfig.passwordHash = await sha256Hex(DEFAULT_PASSWORD);
+          newConfig.secAnswerHash = await sha256Hex(DEFAULT_ANSWER);
+          await saveIndex(newConfig);
+        }
+        localStorage.setItem(LS_TOKEN, token);
+        localStorage.setItem(LS_CHATID, chatid);
+        boot();
+      } catch (err) {
+        setStatus($("#setup-status"), err.message, "error");
+      } finally {
+        $("#btn-setup-submit").disabled = false;
+      }
+    };
+
+    $("#form-login").onsubmit = async (e) => {
+      e.preventDefault();
+      const pw = $("#input-password").value;
+      $("#btn-login-submit").disabled = true;
+      
+      if (await sha256Hex(pw) === CONFIG.passwordHash) {
+        UNLOCKED_PASSWORD = pw;
+        $("#input-password").value = ""; setStatus($("#login-status"), "");
+        updateDashboardStats(); renderGallery(); goDashboard();
+      } else {
+        setStatus($("#login-status"), "Incorrect password.", "error");
+      }
+      $("#btn-login-submit").disabled = false;
+    };
+
+    $("#btn-switch-account").onclick = () => goSetup();
+    $("#btn-lock").onclick = () => { UNLOCKED_PASSWORD = null; $("#gallery").innerHTML = ""; goLogin(); toast("Vault locked"); };
+
+    const dz = $("#dropzone"), fi = $("#input-file");
+    $("#btn-browse").onclick = () => fi.click();
+    fi.onchange = (e) => handleFiles(e.target.files);
+    dz.ondragover = (e) => { e.preventDefault(); dz.classList.add("drag-over"); };
+    dz.ondragleave = (e) => { e.preventDefault(); dz.classList.remove("drag-over"); };
+    dz.ondrop = (e) => { e.preventDefault(); dz.classList.remove("drag-over"); if(e.dataTransfer.files.length) handleFiles(e.dataTransfer.files); };
+
+    $("#btn-close-viewer").onclick = () => { hide($("#modal-viewer")); $("#viewer-body").innerHTML = ""; ACTIVE_FILE = null; };
+    
+    $("#btn-viewer-delete").onclick = async () => {
+      if (!ACTIVE_FILE || !confirm("Delete forever?")) return;
+      $("#btn-viewer-delete").disabled = true;
+      try {
+        CONFIG.files = CONFIG.files.filter(f => f.id !== ACTIVE_FILE.id);
+        await saveIndex(CONFIG);
+        updateDashboardStats(); renderGallery(); $("#btn-close-viewer").click(); toast("Deleted");
+      } catch (e) { toast("Failed to delete", true); }
+      $("#btn-viewer-delete").disabled = false;
+    };
+
+    $("#btn-forgot").onclick = () => {
+      $("#forgot-question").textContent = CONFIG.secQuestion;
+      $("#input-forgot-answer").value = ""; setStatus($("#forgot-status"), ""); show($("#modal-forgot"));
+    };
+    $("#btn-forgot-cancel").onclick = () => hide($("#modal-forgot"));
+    $("#form-forgot").onsubmit = async (e) => {
+      e.preventDefault();
+      if (await sha256Hex($("#input-forgot-answer").value.trim().toLowerCase()) === CONFIG.secAnswerHash) {
+        CONFIG.passwordHash = await sha256Hex(DEFAULT_PASSWORD); await saveIndex(CONFIG);
+        hide($("#modal-forgot")); toast("Password reset to '1122'");
+      } else { setStatus($("#forgot-status"), "Incorrect answer.", "error"); }
+    };
+
+    $("#btn-open-settings").onclick = () => {
+      $("#input-current-password").value = ""; $("#input-new-password").value = "";
+      $("#input-sec-question").value = CONFIG.secQuestion; $("#input-sec-answer").value = "";
+      $("#input-encrypt-toggle").checked = CONFIG.encryptionEnabled;
+      $("#settings-chatid").textContent = CHAT_ID; setStatus($("#settings-status"), "");
+      show($("#modal-settings"));
+    };
+    $("#btn-close-settings").onclick = () => hide($("#modal-settings"));
+    
+    $("#form-change-password").onsubmit = async (e) => {
+      e.preventDefault();
+      if (await sha256Hex($("#input-current-password").value) !== CONFIG.passwordHash) {
+        setStatus($("#settings-status"), "Current password incorrect.", "error"); return;
+      }
+      const newPw = $("#input-new-password").value;
+      CONFIG.passwordHash = await sha256Hex(newPw); await saveIndex(CONFIG);
+      UNLOCKED_PASSWORD = newPw; setStatus($("#settings-status"), "Password updated.", "success");
+    };
+
+    $("#form-security").onsubmit = async (e) => {
+      e.preventDefault();
+      CONFIG.secQuestion = $("#input-sec-question").value.trim();
+      const a = $("#input-sec-answer").value.trim().toLowerCase();
+      if (a) CONFIG.secAnswerHash = await sha256Hex(a);
+      await saveIndex(CONFIG); setStatus($("#settings-status"), "Recovery updated.", "success");
+    };
+
+    $("#input-encrypt-toggle").onchange = async (e) => { CONFIG.encryptionEnabled = e.target.checked; await saveIndex(CONFIG); toast("Encryption setting saved"); };
+    
+    $("#btn-reveal-token").onclick = () => {
+      const el = $("#settings-token");
+      if (el.textContent === "••••••••") { el.textContent = TOKEN; $("#btn-reveal-token").textContent = "hide"; }
+      else { el.textContent = "••••••••"; $("#btn-reveal-token").textContent = "show"; }
+    };
+
+    $("#btn-forget-device").onclick = () => {
+      if (confirm("Sign out?")) { localStorage.clear(); location.reload(); }
+    };
+
+    boot();
+  })();
+  </script>
+</body>
+</html>
